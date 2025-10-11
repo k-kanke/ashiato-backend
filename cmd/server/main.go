@@ -27,13 +27,17 @@ func main() {
 	}
 	defer dbClient.DB.Close()
 
+	// User関連
 	userRepo := database.NewUserRepository(dbClient)
-
 	userUc := usecase.NewUserUsecase(userRepo)
-
 	userHandler := handler.NewUserHandler(userUc)
 
-	router := api.SetupRouter(userHandler)
+	// Pin関連
+	pinRepo := database.NewPinRepository(dbClient)
+	pinUc := usecase.NewPinUsecase(pinRepo)
+	pinHandler := handler.NewPinHandler(pinUc)
+
+	router := api.SetupRouter(userHandler, pinHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {

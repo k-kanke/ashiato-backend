@@ -6,7 +6,7 @@ import (
 	"github.com/k-kanke/ashiato-backend/pkg/api/middleware"
 )
 
-func SetupRouter(userHandler *handler.UserHandler) *gin.Engine {
+func SetupRouter(userHandler *handler.UserHandler, pinHandler *handler.PinHandler) *gin.Engine {
 	router := gin.Default()
 
 	v1 := router.Group("/v1")
@@ -26,7 +26,7 @@ func SetupRouter(userHandler *handler.UserHandler) *gin.Engine {
 		protected.GET("/me", userHandler.GetProfile)
 
 		// ピンの作成
-		// protected.POST("/pins", pinHandler.CreatePin)
+		protected.POST("/pins", pinHandler.CreatePin)
 	}
 
 	return router
