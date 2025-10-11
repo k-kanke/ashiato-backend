@@ -43,6 +43,8 @@ func (r *postgresUserRepository) CreateUser(user *domain.User, settings *domain.
 
 func (r *postgresUserRepository) FindUserByEmail(email string) (*domain.User, error) {
 	user := &domain.User{}
+	var profileImageURL sql.NullString
+	var bio sql.NullString
 
 	const query = `
 		SELECT
@@ -63,8 +65,8 @@ func (r *postgresUserRepository) FindUserByEmail(email string) (*domain.User, er
 		&user.Username,
 		&user.Email,
 		&user.PasswordHash,
-		&user.ProfileImageURL,
-		&user.Bio,
+		&profileImageURL,
+		&bio,
 		&user.IsBanned,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -76,11 +78,20 @@ func (r *postgresUserRepository) FindUserByEmail(email string) (*domain.User, er
 		return nil, fmt.Errorf("failed to find user by email: %w", err)
 	}
 
+	if profileImageURL.Valid {
+		user.ProfileImageURL = profileImageURL.String
+	}
+	if bio.Valid {
+		user.Bio = bio.String
+	}
+
 	return user, nil
 }
 
 func (r *postgresUserRepository) FindUserByID(userID string) (*domain.User, *domain.UserSettings, error) {
 	user := &domain.User{}
+	var profileImageURL sql.NullString
+	var bio sql.NullString
 
 	const userQuery = `
 		SELECT
@@ -101,8 +112,8 @@ func (r *postgresUserRepository) FindUserByID(userID string) (*domain.User, *dom
 		&user.Username,
 		&user.Email,
 		&user.PasswordHash,
-		&user.ProfileImageURL,
-		&user.Bio,
+		&profileImageURL,
+		&bio,
 		&user.IsBanned,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -112,6 +123,13 @@ func (r *postgresUserRepository) FindUserByID(userID string) (*domain.User, *dom
 			return nil, nil, fmt.Errorf("user not found: %w", err)
 		}
 		return nil, nil, fmt.Errorf("failed to find user by id: %w", err)
+	}
+
+	if profileImageURL.Valid {
+		user.ProfileImageURL = profileImageURL.String
+	}
+	if bio.Valid {
+		user.Bio = bio.String
 	}
 
 	settings := &domain.UserSettings{}
