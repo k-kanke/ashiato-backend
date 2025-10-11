@@ -1,5 +1,16 @@
 package usecase
 
+import (
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/k-kanke/ashiato-backend/pkg/domain"
+	"github.com/k-kanke/ashiato-backend/pkg/repository"
+	"golang.org/x/crypto/bcrypt"
+)
+
 type UserUsecase interface {
 	// 新規ユーザーを登録し、認証トークンを返す
 	RegisterUser(username, email, password string) (token string, err error)
@@ -8,4 +19,55 @@ type UserUsecase interface {
 	AuthenticateUser(email, password string) (token string, err error)
 
 	// その他のプロフィール更新、フレンド管理メソッド
+}
+
+type userUsecase struct {
+	userRepo repository.UserRepository
+}
+
+func NewUserUsecase(userRepo repository.UserRepository) UserUsecase {
+	return &userUsecase{userRepo: userRepo}
+}
+
+func (u *userUsecase) RegisterUser(username, email, password string) (token string, err error) {
+	// パスワードのハッシュ化
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	// ユーザーIDとデフォルト設定の準備
+	userID := uuid.New().String()
+	now := time.Now()
+
+	newUser := &domain.User{
+		UserID:       userID,
+		Username:     username,
+		Email:        email,
+		PasswordHash: string(hashedPassword),
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		// ... その他のデフォルト値
+	}
+
+	defaultSettings := &domain.UserSettings{
+		UserID:         userID,
+		CommentOnMyPin: true,
+		// ... その他のデフォルト設定
+	}
+
+	// リポジトリ経由でDBに保存
+	if err := u.userRepo.CreateUser(newUser, defaultSettings); err != nil {
+		// メール重複エラーの処理など
+		return "", fmt.Errorf("registration failed: %w", err)
+	}
+
+	// 認証トークンの生成（一旦仮トークン）
+	token = "generate-jwt-token"
+
+	return token, nil
+}
+
+func (u *userUsecase) AuthenticateUser(email, password string) (string, error) {
+	return "", errors.New("AuthenticateUser not implemented yet")
 }
