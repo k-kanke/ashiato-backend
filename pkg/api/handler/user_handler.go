@@ -11,8 +11,14 @@ type UserHandler struct {
 	UserUsecase usecase.UserUsecase
 }
 
+func NewUserHandler(userUsecase usecase.UserUsecase) *UserHandler {
+	return &UserHandler{
+		UserUsecase: userUsecase,
+	}
+}
+
 type RegisterRequest struct {
-	Username string `josn:"username" binding:"required,min=3,max=50"`
+	Username string `json:"username" binding:"required,min=3,max=50"`
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=8"`
 }
@@ -29,6 +35,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	if err != nil {
 		// 後でエラーの種類に応じてHTTPステータスコードを変えて返却するロジックを追加する
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
+		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
