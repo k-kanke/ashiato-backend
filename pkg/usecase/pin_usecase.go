@@ -3,6 +3,7 @@
 package usecase
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -21,6 +22,16 @@ type PinUsecase interface {
 		mediaURL string,
 		privacy string,
 	) (*domain.Pin, error)
+
+	// 地図表示用のピンを取得
+	GetPinsForMap(
+		userID string,
+		minLat float64,
+		maxLat float64,
+		minLng float64,
+		maxLng float64,
+		privacy string,
+	) ([]domain.Pin, error)
 }
 
 type pinUsecase struct {
@@ -28,8 +39,8 @@ type pinUsecase struct {
 	// ... 他のリポジトリ
 }
 
-func NewPinUsecase(pr repository.PinRepository) PinUsecase {
-	return &pinUsecase{pinRepo: pr}
+func NewPinUsecase(pinRepo repository.PinRepository) PinUsecase {
+	return &pinUsecase{pinRepo: pinRepo}
 }
 
 // PostNewPin は新規Pin投稿の全ロジックを実行する
@@ -63,4 +74,22 @@ func (u *pinUsecase) PostNewPin(
 	return newPin, nil
 }
 
-// GetPinsForMap
+// GetPinsForMap は地図表示のためのPinを取得する
+func (u *pinUsecase) GetPinsForMap(
+	userID string,
+	minLat, maxLat, minLng, maxLng float64,
+	privacy string,
+) ([]domain.Pin, error) {
+	// 1. バリデーション: 矩形範囲が妥当かチェック
+	if minLat >= maxLat || minLng >= maxLng {
+		return nil, errors.New("invalid map bounding box coordinates")
+	}
+
+	// 2. リポジトリの呼び出し
+	pins, err := u.pinRepo.GetPinsInArea(userID, minLat, maxLat, minLng, maxLng, privacy)
+	if err != nil {
+		return nil, fmt.Errorf("usecase failed to get pins: %w", err)
+	}
+
+	return pins, nil
+}

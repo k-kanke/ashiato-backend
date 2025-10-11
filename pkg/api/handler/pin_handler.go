@@ -27,6 +27,14 @@ type CreatePinRequest struct {
 	PrivacySetting string  `json:"privacy_setting" binding:"required,oneof=public friends"`
 }
 
+type GetPinsRequest struct {
+	NeLat          float64 `form:"ne_lat" binding:"required"` // 北東 緯度
+	NeLng          float64 `form:"ne_lng" binding:"required"` // 北東 経度
+	SwLat          float64 `form:"sw_lat" binding:"required"` // 南西 緯度
+	SwLng          float64 `form:"sw_lng" binding:"required"` // 南西 経度
+	PrivacySetting string  `form:"privacy"`                   // 表示する公開設定（デフォルト: public）
+}
+
 // CreatePin は POST /v1/pins のハンドラー
 func (h *PinHandler) CreatePin(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
@@ -52,4 +60,38 @@ func (h *PinHandler) CreatePin(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Pin created successfully", "pin": pin})
+}
+
+// GetPins は GET /v1/pins のハンドラー
+func (h *PinHandler) GetPins(c *gin.Context) {
+	userID := middleware.GetUserIDFromContext(c)
+	var req GetPinsRequest
+
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+		return
+	}
+
+	privacy := req.PrivacySetting
+	if privacy == "" {
+		privacy = "public"
+	}
+
+	pins, err := h.PinUsecase.GetPinsForMap(
+		userID,
+		req.SwLat, // 最小緯度
+		req.NeLat, // 最大緯度
+		req.SwLng, // 最小経度
+		req.NeLng, // 最大経度
+		privacy,
+	)
+
+	if err != nil {
+		// ... エラー処理
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve pins"})
+		return
+	}
+
+	// 3. 成功レスポンスの返却
+	c.JSON(http.StatusOK, gin.H{"pins": pins})
 }

@@ -25,8 +25,9 @@ func SetupRouter(userHandler *handler.UserHandler, pinHandler *handler.PinHandle
 		// プロフィール情報取得
 		protected.GET("/me", userHandler.GetProfile)
 
-		// ピンの作成
+		// ピン
 		protected.POST("/pins", pinHandler.CreatePin)
+		protected.GET("/pins", pinHandler.GetPins)
 	}
 
 	return router
