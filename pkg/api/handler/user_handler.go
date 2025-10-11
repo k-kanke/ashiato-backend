@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/k-kanke/ashiato-backend/pkg/api/middleware"
 	"github.com/k-kanke/ashiato-backend/pkg/usecase"
 )
 
@@ -69,4 +70,20 @@ func (h *UserHandler) Login(c *gin.Context) {
 		"message": "Login successful",
 		"token":   token,
 	})
+}
+
+func (h *UserHandler) GetProfile(c *gin.Context) {
+	userID := middleware.GetUserIDFromContext(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
+		return
+	}
+
+	profile, err := h.UserUsecase.GetUserProfile(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, profile)
 }

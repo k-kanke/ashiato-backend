@@ -20,11 +20,25 @@ type UserUsecase interface {
 	// ユーザーを認証し、認証トークンを返す
 	AuthenticateUser(email, password string) (token string, err error)
 
+	// ユーザーのプロフィールを取得
+	GetUserProfile(userID string) (*ProfileResponse, error)
+
 	// その他のプロフィール更新、フレンド管理メソッド
 }
 
 type userUsecase struct {
 	userRepo repository.UserRepository
+}
+
+type ProfileResponse struct {
+	UserID                string `json:"user_id"`
+	Username              string `json:"username"`
+	Email                 string `json:"email"`
+	CommentOnMyPin        bool   `json:"comment_on_my_pin"`
+	FriendNewPin          bool   `json:"friend_new_pin"`
+	FriendRequestReceived bool   `json:"friend_request_received"`
+	FriendRequestAccepted bool   `json:"friend_request_accepted"`
+	CreatedAt             string `json:"created_at"`
 }
 
 func NewUserUsecase(userRepo repository.UserRepository) UserUsecase {
@@ -106,4 +120,28 @@ func (u *userUsecase) AuthenticateUser(email, password string) (token string, er
 
 	return token, nil
 
+}
+
+// GetUserProfile はユーザー情報と設定をまとめて返す
+func (u *userUsecase) GetUserProfile(userID string) (*ProfileResponse, error) {
+	user, settings, err := u.userRepo.FindUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve user profile: %w", err)
+	}
+
+	resp := &ProfileResponse{
+		UserID:    user.UserID,
+		Username:  user.Username,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
+	}
+
+	if settings != nil {
+		resp.CommentOnMyPin = settings.CommentOnMyPin
+		resp.FriendNewPin = settings.FriendNewPin
+		resp.FriendRequestReceived = settings.FriendRequestReceived
+		resp.FriendRequestAccepted = settings.FriendRequestAccepted
+	}
+
+	return resp, nil
 }

@@ -22,6 +22,9 @@ func SetupRouter(userHandler *handler.UserHandler) *gin.Engine {
 	protected := v1.Group("/")
 	protected.Use(middleware.AuthMiddleware())
 	{
+		// プロフィール情報取得
+		protected.GET("/me", userHandler.GetProfile)
+
 		// ピンの作成
 		// protected.POST("/pins", pinHandler.CreatePin)
 	}

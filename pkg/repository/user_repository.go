@@ -13,7 +13,7 @@ type UserRepository interface {
 	FindUserByEmail(email string) (*domain.User, error)
 
 	// UserIDを基にユーザーと設定を検索する
-	FindUserByID(usreID string) (*domain.User, *domain.UserSettings, error)
+	FindUserByID(userID string) (*domain.User, *domain.UserSettings, error)
 
 	// その他のフレンドや設定更新メソッド
 }
