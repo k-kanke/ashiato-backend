@@ -78,8 +78,25 @@ func (u *userUsecase) RegisterUser(username, email, password string) (token stri
 		return "", fmt.Errorf("registration failed: %w", err)
 	}
 
-	// 認証トークンの生成（一旦仮トークン）
-	token = "generate-jwt-token"
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return "", fmt.Errorf("missing JWT secret")
+	}
+
+	expiryStr := os.Getenv("TOKEN_EXPIRY_HOURS")
+	expiryHours := 24 // default 1 day
+	if expiryStr != "" {
+		if parsed, parseErr := strconv.Atoi(expiryStr); parseErr == nil {
+			expiryHours = parsed
+		} else {
+			return "", fmt.Errorf("invalid TOKEN_EXPIRY_HOURS: %w", parseErr)
+		}
+	}
+
+	token, err = shared.GenerateToken(newUser.UserID, secret, expiryHours)
+	if err != nil {
+		return "", fmt.Errorf("token generation failed: %w", err)
+	}
 
 	return token, nil
 }
