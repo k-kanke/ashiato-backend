@@ -37,6 +37,7 @@ func SetupRouter(
 		friend := protected.Group("/friends")
 		{
 			friend.POST("/:user_id/request", friendHandler.RequestFriendship)
+			friend.POST("/:user_id/accept", friendHandler.AcceptFriendship)
 		}
 	}
 

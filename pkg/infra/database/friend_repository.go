@@ -2,6 +2,8 @@ package database
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/k-kanke/ashiato-backend/pkg/domain"
@@ -52,6 +54,37 @@ func (r *postgresFriendRepository) CreateFriendship(userAID, userBID, actionUser
 }
 
 func (r *postgresFriendRepository) UpdateFriendshipStatus(userA, userB, newStatus, actionUserID string) error {
+	// 1. ユーザーIDを正規化 (userAID < userBID)
+	id1, id2 := userA, userB
+	if userA > userB {
+		id1, id2 = userB, userA
+	}
+
+	now := time.Now()
+
+	query := `
+        UPDATE friends
+        SET 
+            status = $3,
+            action_user_id = $4,
+            updated_at = $5
+        WHERE user_a_id = $1 AND user_b_id = $2
+    `
+
+	result, err := r.client.DB.Exec(query, id1, id2, newStatus, actionUserID, now)
+	if err != nil {
+		return fmt.Errorf("failed to update friendship status: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("friendship record not found or already updated")
+	}
+
 	return nil
 }
 

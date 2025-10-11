@@ -63,5 +63,33 @@ func (uc *friendUsecase) RequestFriendship(requesterID, targetID string) error {
 }
 
 func (uc *friendUsecase) AcceptFriendship(accepterID, targetID string) error {
+	friendship, err := uc.friendRepo.FindFriendshipStatus(accepterID, targetID)
+	if err != nil {
+		return fmt.Errorf("failed to check friendship status: %w", err)
+	}
+	if friendship == nil {
+		return errors.New("friendship request not found")
+	}
+
+	if friendship.Status != "pending" {
+		return errors.New("no pending request exists")
+	}
+
+	// 承認するのは、申請の対象者（つまり、action_user_id ではない方）でなければならないというチェックも必要。
+	// ...
+
+	// 3. リポジトリでステータスを 'accepted' に更新
+	if err := uc.friendRepo.UpdateFriendshipStatus(
+		friendship.UserAID,
+		friendship.UserBID,
+		"accepted",
+		accepterID,
+	); err != nil {
+		return fmt.Errorf("failed to accept friendship: %w", err)
+	}
+
+	// 4. 通知ロジック（後で実装）: 申請者に承認通知を生成
+	// ...
+
 	return nil
 }
