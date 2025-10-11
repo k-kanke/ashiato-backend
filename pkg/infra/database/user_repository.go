@@ -30,7 +30,7 @@ func (r *postgresUserRepository) CreateUser(user *domain.User, settings *domain.
 	}
 
 	// UserSettingsテーブルへの挿入
-	sqlSettings := `INSERT INTO user_settings (user_id, comment_on_my_pin, friend_new_pin, frined_request_received, friend_request_accepted) 
+	sqlSettings := `INSERT INTO user_settings (user_id, comment_on_my_pin, friend_new_pin, friend_request_received, friend_request_accepted) 
                     VALUES ($1, $2, $3, $4, $5)`
 	_, err = r.client.DB.Exec(sqlSettings, settings.UserID, settings.CommentOnMyPin, settings.FriendNewPin, settings.FriendRequestReceived, settings.FriendRequestAccepted)
 	if err != nil {
@@ -121,7 +121,7 @@ func (r *postgresUserRepository) FindUserByID(userID string) (*domain.User, *dom
 			user_id,
 			comment_on_my_pin,
 			friend_new_pin,
-			frined_request_received,
+			friend_request_received,
 			friend_request_accepted
 		FROM user_settings
 		WHERE user_id = $1`

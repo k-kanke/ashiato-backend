@@ -1,0 +1,20 @@
+
+services:
+  ashiato_db:
+    # PostGISがプリインストールされた公式PostgreSQLイメージ
+    image: postgis/postgis:16-3.4-alpine  # 最新の安定版を使用
+    container_name: ashiato-postgres-db
+    restart: always
+    environment:
+      POSTGRES_USER: ashiato_user
+      POSTGRES_PASSWORD: ashiato_password
+      POSTGRES_DB: ashiato_db
+    ports:
+      # ホスト側のポート 5435 をコンテナ側のポート 5432 にマッピング
+      - "5435:5432" 
+    volumes:
+      # DBデータをローカルに永続化するためのボリューム
+      - ashiato-data:/var/lib/postgresql/data
+
+volumes:
+  ashiato-data:
