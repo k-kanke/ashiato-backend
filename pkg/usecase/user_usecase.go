@@ -1,13 +1,15 @@
 package usecase
 
 import (
-	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/k-kanke/ashiato-backend/pkg/domain"
 	"github.com/k-kanke/ashiato-backend/pkg/repository"
+	"github.com/k-kanke/ashiato-backend/pkg/shared"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -68,6 +70,40 @@ func (u *userUsecase) RegisterUser(username, email, password string) (token stri
 	return token, nil
 }
 
-func (u *userUsecase) AuthenticateUser(email, password string) (string, error) {
-	return "", errors.New("AuthenticateUser not implemented yet")
+func (u *userUsecase) AuthenticateUser(email, password string) (token string, err error) {
+	user, err := u.userRepo.FindUserByEmail(email)
+	if err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		if err == bcrypt.ErrMismatchedHashAndPassword {
+			return "", fmt.Errorf("invalid credentials")
+		}
+		return "", fmt.Errorf("authentication error: %w", err)
+	}
+
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return "", fmt.Errorf("missing JWT secret")
+	}
+
+	expiryStr := os.Getenv("TOKEN_EXPIRY_HOURS")
+	expiryHours := 24 // default 1 day
+	if expiryStr != "" {
+		if parsed, parseErr := strconv.Atoi(expiryStr); parseErr == nil {
+			expiryHours = parsed
+		} else {
+			return "", fmt.Errorf("invalid TOKEN_EXPIRY_HOURS: %w", parseErr)
+		}
+	}
+
+	token, err = shared.GenerateToken(user.UserID, secret, expiryHours)
+	if err != nil {
+		return "", fmt.Errorf("token generation failed: %w", err)
+	}
+
+	return token, nil
+
 }
