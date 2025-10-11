@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/k-kanke/ashiato-backend/pkg/api/handler"
+	"github.com/k-kanke/ashiato-backend/pkg/api/middleware"
 )
 
 func SetupRouter(userHandler *handler.UserHandler) *gin.Engine {
@@ -16,6 +17,13 @@ func SetupRouter(userHandler *handler.UserHandler) *gin.Engine {
 			auth.POST("/register", userHandler.Register)
 			auth.POST("/login", userHandler.Login)
 		}
+	}
+
+	protected := v1.Group("/")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		// ピンの作成
+		// protected.POST("/pins", pinHandler.CreatePin)
 	}
 
 	return router
