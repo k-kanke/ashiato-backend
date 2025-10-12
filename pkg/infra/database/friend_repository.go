@@ -89,5 +89,38 @@ func (r *postgresFriendRepository) UpdateFriendshipStatus(userA, userB, newStatu
 }
 
 func (r *postgresFriendRepository) GetFriendsList(userID string) ([]string, error) {
-	return nil, nil
+	query := `
+        SELECT 
+            CASE
+                WHEN user_a_id = $1 THEN user_b_id
+                ELSE user_a_id
+            END AS friend_id
+        FROM friends
+        WHERE 
+            -- user_a_id または user_b_id が自身のIDであり、
+            (user_a_id = $1 OR user_b_id = $1)
+            -- ステータスが 'accepted' であること
+            AND status = 'accepted'
+    `
+
+	rows, err := r.client.DB.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query friends list: %w", err)
+	}
+	defer rows.Close()
+
+	var friendIDs []string
+	for rows.Next() {
+		var friendID string
+		if err := rows.Scan(&friendID); err != nil {
+			return nil, fmt.Errorf("failed to scan friend ID: %w", err)
+		}
+		friendIDs = append(friendIDs, friendID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return friendIDs, nil
 }

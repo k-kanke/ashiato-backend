@@ -38,6 +38,7 @@ func SetupRouter(
 		{
 			friend.POST("/:user_id/request", friendHandler.RequestFriendship)
 			friend.POST("/:user_id/accept", friendHandler.AcceptFriendship)
+			friend.GET("", friendHandler.GetFriendsList)
 		}
 	}
 

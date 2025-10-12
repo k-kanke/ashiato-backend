@@ -13,6 +13,9 @@ type FriendUsecase interface {
 
 	// フレンド申請を承認する
 	AcceptFriendship(accepterID, targetID string) error
+
+	// フレンド一覧を取得する
+	GetFriendsList(userID string) ([]string, error)
 }
 
 type friendUsecase struct {
@@ -92,4 +95,12 @@ func (uc *friendUsecase) AcceptFriendship(accepterID, targetID string) error {
 	// ...
 
 	return nil
+}
+
+func (uc *friendUsecase) GetFriendsList(userID string) ([]string, error) {
+	friendIDs, err := uc.friendRepo.GetFriendsList(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get friend list: %w", err)
+	}
+	return friendIDs, nil
 }

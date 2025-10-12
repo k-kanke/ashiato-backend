@@ -39,3 +39,15 @@ func (h *FriendHandler) AcceptFriendship(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Friend request accepted successfully"})
 }
+
+func (h *FriendHandler) GetFriendsList(c *gin.Context) {
+	userID := middleware.GetUserIDFromContext(c)
+
+	friendIDs, err := h.FriendUsecase.GetFriendsList(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"friends": friendIDs})
+}
