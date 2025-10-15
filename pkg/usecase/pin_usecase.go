@@ -5,6 +5,7 @@ package usecase
 import (
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,6 +52,10 @@ func (u *pinUsecase) PostNewPin(
 	mediaURL string,
 	privacy string,
 ) (*domain.Pin, error) {
+	if err := u.validatePinLocation(userID, lat, lng); err != nil {
+		return nil, err
+	}
+
 	// 1. 位置認証ロジック (例: 過去のアクセス履歴や、現在地の厳密な検証)
 	// ここで位置情報の偽装チェックを行う
 	// if !u.CheckLocationValidity(userID, lat, lng) { return nil, errors.New("location not verified") }
@@ -92,4 +97,52 @@ func (u *pinUsecase) GetPinsForMap(
 	}
 
 	return pins, nil
+}
+
+func (u *pinUsecase) validatePinLocation(userID string, lat, lng float64) error {
+	if math.IsNaN(lat) || math.IsNaN(lng) {
+		return errors.New("invalid coordinates: NaN detected")
+	}
+	if lat < -90 || lat > 90 || lng < -180 || lng > 180 {
+		return errors.New("invalid coordinates: out of range")
+	}
+
+	latestPin, err := u.pinRepo.GetMostRecentPin(userID)
+	if err != nil {
+		return fmt.Errorf("location validation failed: %w", err)
+	}
+
+	// 初回投稿はそのまま許可
+	if latestPin == nil {
+		return nil
+	}
+
+	const permissibleDriftMeters = 5000.0 // 5km 以上離れていたら再認証を求める
+	distance := haversineMeters(latestPin.Latitude, latestPin.Longitude, lat, lng)
+	if distance > permissibleDriftMeters {
+		return fmt.Errorf("location deviation (%.0fm) exceeds the permitted range. Please re-verify your location", distance)
+	}
+
+	return nil
+}
+
+func haversineMeters(lat1, lng1, lat2, lng2 float64) float64 {
+	const earthRadiusMeters = 6371000.0
+
+	toRadians := func(deg float64) float64 {
+		return deg * math.Pi / 180.0
+	}
+
+	dLat := toRadians(lat2 - lat1)
+	dLng := toRadians(lng2 - lng1)
+
+	latRad1 := toRadians(lat1)
+	latRad2 := toRadians(lat2)
+
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(latRad1)*math.Cos(latRad2)*
+			math.Sin(dLng/2)*math.Sin(dLng/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	return earthRadiusMeters * c
 }

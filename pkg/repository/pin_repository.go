@@ -13,6 +13,9 @@ type PinRepository interface {
 		privacySetting string,
 	) ([]domain.Pin, error)
 
+	// ユーザーの最新のピンを取得する
+	GetMostRecentPin(userID string) (*domain.Pin, error)
+
 	// Pinにコメントを追加する
 	CreateComment(comment *domain.Comment) error
 }

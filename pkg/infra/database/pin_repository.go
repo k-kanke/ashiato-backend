@@ -1,7 +1,9 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/k-kanke/ashiato-backend/pkg/domain"
 	"github.com/k-kanke/ashiato-backend/pkg/repository"
@@ -104,6 +106,39 @@ func (r *postgresPinRepository) GetPinsInArea(
 	}
 
 	return pins, nil
+}
+
+func (r *postgresPinRepository) GetMostRecentPin(userID string) (*domain.Pin, error) {
+	const query = `
+        SELECT 
+            ST_Y(p.location::geometry) AS latitude,
+            ST_X(p.location::geometry) AS longitude,
+            p.created_at
+        FROM pins p
+        WHERE p.user_id = $1
+        ORDER BY p.created_at DESC
+        LIMIT 1
+    `
+
+	row := r.client.DB.QueryRow(query, userID)
+
+	var latitude float64
+	var longitude float64
+	var createdAt time.Time
+
+	if err := row.Scan(&latitude, &longitude, &createdAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to fetch most recent pin: %w", err)
+	}
+
+	return &domain.Pin{
+		UserID:    userID,
+		Latitude:  latitude,
+		Longitude: longitude,
+		CreatedAt: createdAt,
+	}, nil
 }
 
 func (r *postgresPinRepository) CreateComment(comment *domain.Comment) error {
