@@ -44,6 +44,11 @@ func NewPinUsecase(pinRepo repository.PinRepository) PinUsecase {
 	return &pinUsecase{pinRepo: pinRepo}
 }
 
+var (
+	ErrInvalidPinCoordinates = errors.New("invalid pin coordinates")
+	ErrPinLocationDeviation  = errors.New("pin location deviation too large")
+)
+
 // PostNewPin は新規Pin投稿の全ロジックを実行する
 func (u *pinUsecase) PostNewPin(
 	userID string,
@@ -101,10 +106,10 @@ func (u *pinUsecase) GetPinsForMap(
 
 func (u *pinUsecase) validatePinLocation(userID string, lat, lng float64) error {
 	if math.IsNaN(lat) || math.IsNaN(lng) {
-		return errors.New("invalid coordinates: NaN detected")
+		return fmt.Errorf("%w: NaN detected", ErrInvalidPinCoordinates)
 	}
 	if lat < -90 || lat > 90 || lng < -180 || lng > 180 {
-		return errors.New("invalid coordinates: out of range")
+		return fmt.Errorf("%w: coordinates out of range", ErrInvalidPinCoordinates)
 	}
 
 	latestPin, err := u.pinRepo.GetMostRecentPin(userID)
@@ -117,10 +122,16 @@ func (u *pinUsecase) validatePinLocation(userID string, lat, lng float64) error 
 		return nil
 	}
 
-	const permissibleDriftMeters = 5000.0 // 5km 以上離れていたら再認証を求める
+	// 一定時間以上経過している場合は距離チェックを緩和
+	const driftGraceDuration = 6 * time.Hour
+	if time.Since(latestPin.CreatedAt) > driftGraceDuration {
+		return nil
+	}
+
+	const permissibleDriftMeters = 50000.0 // 50km 以上離れていたら再認証を求める
 	distance := haversineMeters(latestPin.Latitude, latestPin.Longitude, lat, lng)
 	if distance > permissibleDriftMeters {
-		return fmt.Errorf("location deviation (%.0fm) exceeds the permitted range. Please re-verify your location", distance)
+		return fmt.Errorf("%w: deviation %.0fm exceeds %.0fm", ErrPinLocationDeviation, distance, permissibleDriftMeters)
 	}
 
 	return nil

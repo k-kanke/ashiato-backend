@@ -3,6 +3,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +36,6 @@ type GetPinsRequest struct {
 	PrivacySetting string  `form:"privacy"`                   // 表示する公開設定（デフォルト: public）
 }
 
-// CreatePin は POST /v1/pins のハンドラー
 func (h *PinHandler) CreatePin(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	var req CreatePinRequest
@@ -55,7 +55,14 @@ func (h *PinHandler) CreatePin(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create pin"})
+		switch {
+		case errors.Is(err, usecase.ErrInvalidPinCoordinates):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case errors.Is(err, usecase.ErrPinLocationDeviation):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create pin"})
+		}
 		return
 	}
 
