@@ -1,5 +1,3 @@
-// /pkg/api/handler/pin_handler.go
-
 package handler
 
 import (
@@ -19,7 +17,6 @@ func NewPinHandler(uc usecase.PinUsecase) *PinHandler {
 	return &PinHandler{PinUsecase: uc}
 }
 
-// CreatePinRequest は Pin作成リクエストのJSON構造体
 type CreatePinRequest struct {
 	Latitude       float64 `json:"latitude" binding:"required"`
 	Longitude      float64 `json:"longitude" binding:"required"`
@@ -69,7 +66,6 @@ func (h *PinHandler) CreatePin(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Pin created successfully", "pin": pin})
 }
 
-// GetPins は GET /v1/pins のハンドラー
 func (h *PinHandler) GetPins(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	var req GetPinsRequest
