@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS comments (
     pin_id UUID NOT NULL REFERENCES pins(pin_id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     content_text TEXT NOT NULL,
+    media_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 

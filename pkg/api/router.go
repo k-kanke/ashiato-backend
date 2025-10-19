@@ -17,6 +17,8 @@ func SetupRouter(
 ) *gin.Engine {
 	router := gin.Default()
 
+	router.Static("/uploads", "./uploads")
+
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3001"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},

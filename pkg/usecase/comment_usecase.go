@@ -28,7 +28,7 @@ var (
 
 type CommentUsecase interface {
 	GetThread(pinID string, limit int, after *time.Time) ([]domain.Comment, error)
-	AddComment(pinID string, userID string, content string) (*domain.Comment, error)
+	AddComment(pinID string, userID string, content string, mediaURL *string) (*domain.Comment, error)
 }
 
 type commentUsecase struct {
@@ -64,7 +64,7 @@ func (u *commentUsecase) GetThread(pinID string, limit int, after *time.Time) ([
 	return comments, nil
 }
 
-func (u *commentUsecase) AddComment(pinID string, userID string, content string) (*domain.Comment, error) {
+func (u *commentUsecase) AddComment(pinID string, userID string, content string, mediaURL *string) (*domain.Comment, error) {
 	if strings.TrimSpace(pinID) == "" {
 		return nil, ErrInvalidPinID
 	}
@@ -86,6 +86,10 @@ func (u *commentUsecase) AddComment(pinID string, userID string, content string)
 		UserID:      userID,
 		ContentText: trimmed,
 		CreatedAt:   time.Now().UTC(),
+	}
+
+	if mediaURL != nil {
+		comment.MediaURL = *mediaURL
 	}
 
 	if err := u.commentRepo.CreateComment(comment); err != nil {

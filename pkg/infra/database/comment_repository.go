@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/k-kanke/ashiato-backend/pkg/domain"
@@ -24,6 +25,7 @@ func (r *postgresCommentRepository) ListCommentsByPin(pinID string, limit int, a
 			pin_id,
 			user_id,
 			content_text,
+			media_url,
 			created_at
 		FROM comments
 		WHERE pin_id = $1
@@ -56,14 +58,19 @@ func (r *postgresCommentRepository) ListCommentsByPin(pinID string, limit int, a
 	comments := make([]domain.Comment, 0)
 	for rows.Next() {
 		var comment domain.Comment
+		var mediaURL sql.NullString
 		if err := rows.Scan(
 			&comment.CommentID,
 			&comment.PinID,
 			&comment.UserID,
 			&comment.ContentText,
+			&mediaURL,
 			&comment.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan comment row: %w", err)
+		}
+		if mediaURL.Valid {
+			comment.MediaURL = mediaURL.String
 		}
 		comments = append(comments, comment)
 	}
@@ -77,14 +84,20 @@ func (r *postgresCommentRepository) ListCommentsByPin(pinID string, limit int, a
 
 func (r *postgresCommentRepository) CreateComment(comment *domain.Comment) error {
 	const query = `
-		INSERT INTO comments (
-			comment_id,
-			pin_id,
-			user_id,
-			content_text,
-			created_at
-		) VALUES ($1, $2, $3, $4, $5)
-	`
+        INSERT INTO comments (
+            comment_id,
+            pin_id,
+            user_id,
+            content_text,
+            media_url,
+            created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+    `
+
+	var mediaValue interface{}
+	if strings.TrimSpace(comment.MediaURL) != "" {
+		mediaValue = comment.MediaURL
+	}
 
 	if _, err := r.client.DB.Exec(
 		query,
@@ -92,6 +105,7 @@ func (r *postgresCommentRepository) CreateComment(comment *domain.Comment) error
 		comment.PinID,
 		comment.UserID,
 		comment.ContentText,
+		mediaValue,
 		comment.CreatedAt.UTC(),
 	); err != nil {
 		return fmt.Errorf("failed to insert comment: %w", err)

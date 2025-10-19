@@ -3,6 +3,8 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/k-kanke/ashiato-backend/pkg/api/middleware"
@@ -35,20 +37,86 @@ type GetPinsRequest struct {
 
 func (h *PinHandler) CreatePin(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
-	var req CreatePinRequest
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
-		return
+	contentType := c.GetHeader("Content-Type")
+
+	var latitude float64
+	var longitude float64
+	var contentText string
+	var privacySetting string
+	var mediaURL string
+
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		latStr := strings.TrimSpace(c.PostForm("latitude"))
+		lngStr := strings.TrimSpace(c.PostForm("longitude"))
+		if latStr == "" || lngStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "latitude and longitude are required"})
+			return
+		}
+
+		var err error
+		latitude, err = strconv.ParseFloat(latStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid latitude"})
+			return
+		}
+
+		longitude, err = strconv.ParseFloat(lngStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid longitude"})
+			return
+		}
+
+		contentText = strings.TrimSpace(c.PostForm("content_text"))
+		if contentText == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "content_text is required"})
+			return
+		}
+
+		privacySetting = strings.TrimSpace(c.PostForm("privacy_setting"))
+		if privacySetting == "" {
+			privacySetting = "public"
+		}
+
+		if privacySetting != "public" && privacySetting != "friends" {
+			privacySetting = "public"
+		}
+
+		if fileHeader, err := c.FormFile("image"); err == nil {
+			savedURL, saveErr := saveUploadedImage(c, fileHeader, "pins")
+			if saveErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": saveErr.Error()})
+				return
+			}
+			mediaURL = savedURL
+		}
+	} else {
+		var req CreatePinRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+			return
+		}
+		latitude = req.Latitude
+		longitude = req.Longitude
+		contentText = strings.TrimSpace(req.ContentText)
+		if contentText == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "content_text is required"})
+			return
+		}
+		privacySetting = req.PrivacySetting
+		mediaURL = strings.TrimSpace(req.MediaURL)
+		if privacySetting != "public" && privacySetting != "friends" {
+			privacySetting = "public"
+		}
 	}
 
 	pin, err := h.PinUsecase.PostNewPin(
 		userID,
-		req.Latitude,
-		req.Longitude,
-		req.ContentText,
-		req.MediaURL,
-		req.PrivacySetting,
+		latitude,
+		longitude,
+		contentText,
+		mediaURL,
+		privacySetting,
 	)
 
 	if err != nil {

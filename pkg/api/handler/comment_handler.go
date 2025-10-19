@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,7 @@ type getThreadQuery struct {
 
 type postCommentRequest struct {
 	ContentText string `json:"content_text" binding:"required"`
+	MediaURL    string `json:"media_url"`
 }
 
 func (h *CommentHandler) GetThread(c *gin.Context) {
@@ -62,13 +64,45 @@ func (h *CommentHandler) PostComment(c *gin.Context) {
 	pinID := c.Param("pin_id")
 	userID := middleware.GetUserIDFromContext(c)
 
-	var req postCommentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
-		return
+	contentType := c.GetHeader("Content-Type")
+
+	var contentText string
+	var mediaURL *string
+
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		contentText = strings.TrimSpace(c.PostForm("content_text"))
+		if contentText == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "content_text is required"})
+			return
+		}
+
+		if fileHeader, err := c.FormFile("image"); err == nil {
+			savedURL, saveErr := saveUploadedImage(c, fileHeader, "comments")
+			if saveErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": saveErr.Error()})
+				return
+			}
+			mediaURL = &savedURL
+		}
+	} else {
+		var req postCommentRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+			return
+		}
+		contentText = strings.TrimSpace(req.ContentText)
+		if contentText == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "content_text is required"})
+			return
+		}
+
+		if strings.TrimSpace(req.MediaURL) != "" {
+			trimmed := strings.TrimSpace(req.MediaURL)
+			mediaURL = &trimmed
+		}
 	}
 
-	comment, err := h.CommentUsecase.AddComment(pinID, userID, req.ContentText)
+	comment, err := h.CommentUsecase.AddComment(pinID, userID, contentText, mediaURL)
 	switch {
 	case err == nil:
 		c.JSON(http.StatusCreated, gin.H{"comment": comment})

@@ -7,5 +7,6 @@ type Comment struct {
 	PinID       string    `json:"pin_id"`
 	UserID      string    `json:"user_id"`
 	ContentText string    `json:"content_text"`
+	MediaURL    string    `json:"media_url"`
 	CreatedAt   time.Time `json:"created_at"`
 }
