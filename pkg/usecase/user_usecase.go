@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +23,9 @@ type UserUsecase interface {
 
 	// ユーザーのプロフィールを取得
 	GetUserProfile(userID string) (*ProfileResponse, error)
+
+	// ユーザーの通知設定などを更新
+	UpdateUserSettings(settings *domain.UserSettings) error
 
 	// その他のプロフィール更新、フレンド管理メソッド
 }
@@ -161,4 +165,19 @@ func (u *userUsecase) GetUserProfile(userID string) (*ProfileResponse, error) {
 	}
 
 	return resp, nil
+}
+
+func (u *userUsecase) UpdateUserSettings(settings *domain.UserSettings) error {
+	if settings == nil {
+		return fmt.Errorf("user settings payload is required")
+	}
+	if strings.TrimSpace(settings.UserID) == "" {
+		return fmt.Errorf("user id must be provided")
+	}
+
+	if err := u.userRepo.UpdateUserSettings(settings); err != nil {
+		return fmt.Errorf("failed to update user settings: %w", err)
+	}
+
+	return nil
 }

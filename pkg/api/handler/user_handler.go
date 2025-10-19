@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/k-kanke/ashiato-backend/pkg/api/middleware"
+	"github.com/k-kanke/ashiato-backend/pkg/domain"
 	"github.com/k-kanke/ashiato-backend/pkg/usecase"
 )
 
@@ -21,6 +22,13 @@ type RegisterRequest struct {
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
+}
+
+type UpdateSettingsRequest struct {
+	CommentOnMyPin        bool `json:"comment_on_my_pin"`
+	FriendNewPin          bool `json:"friend_new_pin"`
+	FriendRequestReceived bool `json:"friend_request_received"`
+	FriendRequestAccepted bool `json:"friend_request_accepted"`
 }
 
 func NewUserHandler(userUsecase usecase.UserUsecase) *UserHandler {
@@ -86,4 +94,42 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, profile)
+}
+
+func (h *UserHandler) UpdateSettings(c *gin.Context) {
+	userID := middleware.GetUserIDFromContext(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
+		return
+	}
+
+	var req UpdateSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request data"})
+		return
+	}
+
+	settings := &domain.UserSettings{
+		UserID:                userID,
+		CommentOnMyPin:        req.CommentOnMyPin,
+		FriendNewPin:          req.FriendNewPin,
+		FriendRequestReceived: req.FriendRequestReceived,
+		FriendRequestAccepted: req.FriendRequestAccepted,
+	}
+
+	if err := h.UserUsecase.UpdateUserSettings(settings); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update settings"})
+		return
+	}
+
+	profile, err := h.UserUsecase.GetUserProfile(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "settings updated but failed to load profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "settings updated",
+		"profile": profile,
+	})
 }

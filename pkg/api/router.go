@@ -41,6 +41,7 @@ func SetupRouter(
 	{
 		// プロフィール情報取得
 		protected.GET("/me", userHandler.GetProfile)
+		protected.PUT("/me/settings", userHandler.UpdateSettings)
 
 		// ピン
 		protected.POST("/pins", pinHandler.CreatePin)

@@ -15,5 +15,6 @@ type UserRepository interface {
 	// UserIDを基にユーザーと設定を検索する
 	FindUserByID(userID string) (*domain.User, *domain.UserSettings, error)
 
-	// その他のフレンドや設定更新メソッド
+	// ユーザー設定を更新する
+	UpdateUserSettings(settings *domain.UserSettings) error
 }

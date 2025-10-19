@@ -160,3 +160,34 @@ func (r *postgresUserRepository) FindUserByID(userID string) (*domain.User, *dom
 
 	return user, settings, nil
 }
+
+func (r *postgresUserRepository) UpdateUserSettings(settings *domain.UserSettings) error {
+	const query = `
+		UPDATE user_settings
+		SET
+			comment_on_my_pin = $2,
+			friend_new_pin = $3,
+			friend_request_received = $4,
+			friend_request_accepted = $5
+		WHERE user_id = $1
+	`
+
+	result, err := r.client.DB.Exec(
+		query,
+		settings.UserID,
+		settings.CommentOnMyPin,
+		settings.FriendNewPin,
+		settings.FriendRequestReceived,
+		settings.FriendRequestAccepted,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update user settings: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err == nil && rowsAffected == 0 {
+		return fmt.Errorf("no user settings updated for user_id %s", settings.UserID)
+	}
+
+	return nil
+}
