@@ -13,6 +13,7 @@ func SetupRouter(
 	userHandler *handler.UserHandler,
 	pinHandler *handler.PinHandler,
 	friendHandler *handler.FriendHandler,
+	commentHandler *handler.CommentHandler,
 ) *gin.Engine {
 	router := gin.Default()
 
@@ -44,6 +45,8 @@ func SetupRouter(
 		// ピン
 		protected.POST("/pins", pinHandler.CreatePin)
 		protected.GET("/pins", pinHandler.GetPins)
+		protected.GET("/pins/:pin_id/thread", commentHandler.GetThread)
+		protected.POST("/pins/:pin_id/comments", commentHandler.PostComment)
 
 		// フレンド関連
 		friend := protected.Group("/friends")

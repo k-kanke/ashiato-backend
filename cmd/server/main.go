@@ -37,12 +37,17 @@ func main() {
 	pinUc := usecase.NewPinUsecase(pinRepo)
 	pinHandler := handler.NewPinHandler(pinUc)
 
+	// Comment関連
+	commentRepo := database.NewCommentRepository(dbClient)
+	commentUc := usecase.NewCommentUsecase(commentRepo)
+	commentHandler := handler.NewCommentHandler(commentUc)
+
 	// Friend関連
 	friendRepo := database.NewFriendRepository(dbClient)
 	friendUc := usecase.NewFriendUsecase(friendRepo)
 	friendHandler := handler.NewFriendHandler(friendUc)
 
-	router := api.SetupRouter(userHandler, pinHandler, friendHandler)
+	router := api.SetupRouter(userHandler, pinHandler, friendHandler, commentHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
