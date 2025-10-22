@@ -38,7 +38,7 @@ func (r *postgresFriendRepository) FindFriendshipStatus(userA, userB string) (*d
 		&friendship.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
-		return nil, nil // 関係が存在しない場合はエラーではなく nil を返す（ユースケースで処理するため）
+		return nil, nil
 	}
 	return &friendship, err
 }
