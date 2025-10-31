@@ -3,6 +3,7 @@ package usecase
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/k-kanke/ashiato-backend/pkg/repository"
 )
@@ -15,7 +16,7 @@ type FriendUsecase interface {
 	AcceptFriendship(accepterID, targetID string) error
 
 	// フレンド一覧を取得する
-	GetFriendsList(userID string) ([]string, error)
+	GetFriendsList(userID string) ([]FriendSummary, error)
 }
 
 type friendUsecase struct {
@@ -97,10 +98,29 @@ func (uc *friendUsecase) AcceptFriendship(accepterID, targetID string) error {
 	return nil
 }
 
-func (uc *friendUsecase) GetFriendsList(userID string) ([]string, error) {
-	friendIDs, err := uc.friendRepo.GetFriendsList(userID)
+type FriendSummary struct {
+	UserID          string `json:"user_id"`
+	Username        string `json:"username"`
+	ProfileImageURL string `json:"profile_image_url,omitempty"`
+}
+
+func (uc *friendUsecase) GetFriendsList(userID string) ([]FriendSummary, error) {
+	friends, err := uc.friendRepo.GetFriendsList(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get friend list: %w", err)
 	}
-	return friendIDs, nil
+
+	summaries := make([]FriendSummary, 0, len(friends))
+	for _, friend := range friends {
+		summary := FriendSummary{
+			UserID:   friend.UserID,
+			Username: friend.Username,
+		}
+		if strings.TrimSpace(friend.ProfileImageURL) != "" {
+			summary.ProfileImageURL = strings.TrimSpace(friend.ProfileImageURL)
+		}
+		summaries = append(summaries, summary)
+	}
+
+	return summaries, nil
 }

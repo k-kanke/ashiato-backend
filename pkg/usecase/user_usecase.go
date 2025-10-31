@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -27,6 +28,9 @@ type UserUsecase interface {
 	// ユーザーの通知設定などを更新
 	UpdateUserSettings(settings *domain.UserSettings) error
 
+	// ユーザー検索
+	SearchUsers(keyword string, requesterID string, limit int) ([]UserSearchItem, error)
+
 	// その他のプロフィール更新、フレンド管理メソッド
 }
 
@@ -47,6 +51,23 @@ type ProfileResponse struct {
 
 func NewUserUsecase(userRepo repository.UserRepository) UserUsecase {
 	return &userUsecase{userRepo: userRepo}
+}
+
+const (
+	defaultUserSearchLimit = 20
+	maxUserSearchLimit     = 50
+)
+
+var (
+	ErrInvalidSearchKeyword = errors.New("search keyword must be at least 2 characters")
+	ErrInvalidRequesterID   = errors.New("requester id must be provided")
+)
+
+type UserSearchItem struct {
+	UserID           string  `json:"user_id"`
+	Username         string  `json:"username"`
+	ProfileImageURL  *string `json:"profile_image_url,omitempty"`
+	FriendshipStatus string  `json:"friendship_status"`
 }
 
 func (u *userUsecase) RegisterUser(username, email, password string) (token string, err error) {
@@ -180,4 +201,57 @@ func (u *userUsecase) UpdateUserSettings(settings *domain.UserSettings) error {
 	}
 
 	return nil
+}
+
+func (u *userUsecase) SearchUsers(keyword string, requesterID string, limit int) ([]UserSearchItem, error) {
+	trimmedKeyword := strings.TrimSpace(keyword)
+	if len([]rune(trimmedKeyword)) < 2 {
+		return nil, ErrInvalidSearchKeyword
+	}
+	if strings.TrimSpace(requesterID) == "" {
+		return nil, ErrInvalidRequesterID
+	}
+
+	resolvedLimit := limit
+	switch {
+	case resolvedLimit <= 0:
+		resolvedLimit = defaultUserSearchLimit
+	case resolvedLimit > maxUserSearchLimit:
+		resolvedLimit = maxUserSearchLimit
+	}
+
+	results, err := u.userRepo.SearchUsers(trimmedKeyword, requesterID, resolvedLimit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search users: %w", err)
+	}
+
+	items := make([]UserSearchItem, 0, len(results))
+	for _, result := range results {
+		item := UserSearchItem{
+			UserID:   result.UserID,
+			Username: result.Username,
+		}
+		if strings.TrimSpace(result.ProfileImageURL) != "" {
+			url := strings.TrimSpace(result.ProfileImageURL)
+			item.ProfileImageURL = &url
+		}
+
+		item.FriendshipStatus = "none"
+		switch result.FriendStatus {
+		case "accepted":
+			item.FriendshipStatus = "friends"
+		case "pending":
+			if result.ActionUserID == requesterID {
+				item.FriendshipStatus = "pending_sent"
+			} else if result.ActionUserID != "" {
+				item.FriendshipStatus = "pending_received"
+			} else {
+				item.FriendshipStatus = "pending"
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
 }

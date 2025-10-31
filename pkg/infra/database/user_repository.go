@@ -191,3 +191,71 @@ func (r *postgresUserRepository) UpdateUserSettings(settings *domain.UserSetting
 
 	return nil
 }
+
+func (r *postgresUserRepository) SearchUsers(keyword string, requesterID string, limit int) ([]repository.UserSearchResult, error) {
+	const query = `
+		SELECT
+			u.user_id,
+			u.username,
+			u.profile_image_url,
+			f.status,
+			f.action_user_id
+		FROM users u
+		LEFT JOIN friends f ON
+			f.user_a_id = LEAST(u.user_id, $2)
+			AND f.user_b_id = GREATEST(u.user_id, $2)
+		WHERE
+			u.user_id <> $2
+			AND u.is_banned = FALSE
+			AND (
+				u.username ILIKE '%' || $1 || '%'
+				OR u.email ILIKE '%' || $1 || '%'
+			)
+		ORDER BY u.username ASC
+		LIMIT $3
+	`
+
+	rows, err := r.client.DB.Query(query, keyword, requesterID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search users: %w", err)
+	}
+	defer rows.Close()
+
+	results := make([]repository.UserSearchResult, 0)
+	for rows.Next() {
+		var (
+			result          repository.UserSearchResult
+			profileImageURL sql.NullString
+			friendStatus    sql.NullString
+			actionUserID    sql.NullString
+		)
+
+		if err := rows.Scan(
+			&result.UserID,
+			&result.Username,
+			&profileImageURL,
+			&friendStatus,
+			&actionUserID,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan user search result: %w", err)
+		}
+
+		if profileImageURL.Valid {
+			result.ProfileImageURL = profileImageURL.String
+		}
+		if friendStatus.Valid {
+			result.FriendStatus = friendStatus.String
+		}
+		if actionUserID.Valid {
+			result.ActionUserID = actionUserID.String
+		}
+
+		results = append(results, result)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate user search rows: %w", err)
+	}
+
+	return results, nil
+}

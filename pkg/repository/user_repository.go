@@ -17,4 +17,15 @@ type UserRepository interface {
 
 	// ユーザー設定を更新する
 	UpdateUserSettings(settings *domain.UserSettings) error
+
+	// キーワード検索でユーザーを取得する
+	SearchUsers(keyword string, requesterID string, limit int) ([]UserSearchResult, error)
+}
+
+type UserSearchResult struct {
+	UserID          string
+	Username        string
+	ProfileImageURL string
+	FriendStatus    string
+	ActionUserID    string
 }

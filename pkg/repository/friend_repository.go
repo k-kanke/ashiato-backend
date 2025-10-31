@@ -13,5 +13,11 @@ type FriendRepository interface {
 	UpdateFriendshipStatus(userA, userB, newStatus, actionUserID string) error
 
 	// ユーザーIDを元にフレンド一覧を取得する
-	GetFriendsList(userID string) ([]string, error)
+	GetFriendsList(userID string) ([]FriendSummary, error)
+}
+
+type FriendSummary struct {
+	UserID          string
+	Username        string
+	ProfileImageURL string
 }

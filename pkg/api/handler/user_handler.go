@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/k-kanke/ashiato-backend/pkg/api/middleware"
@@ -132,4 +135,37 @@ func (h *UserHandler) UpdateSettings(c *gin.Context) {
 		"message": "settings updated",
 		"profile": profile,
 	})
+}
+
+func (h *UserHandler) SearchUsers(c *gin.Context) {
+	requesterID := middleware.GetUserIDFromContext(c)
+	if strings.TrimSpace(requesterID) == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
+		return
+	}
+
+	keyword := c.Query("q")
+	limitStr := c.Query("limit")
+
+	var limit int
+	if strings.TrimSpace(limitStr) != "" {
+		parsed, err := strconv.Atoi(limitStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "limit must be a number"})
+			return
+		}
+		limit = parsed
+	}
+
+	users, err := h.UserUsecase.SearchUsers(keyword, requesterID, limit)
+	switch {
+	case err == nil:
+		c.JSON(http.StatusOK, gin.H{"users": users})
+	case errors.Is(err, usecase.ErrInvalidSearchKeyword):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	case errors.Is(err, usecase.ErrInvalidRequesterID):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to search users"})
+	}
 }

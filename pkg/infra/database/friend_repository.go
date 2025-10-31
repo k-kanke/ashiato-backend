@@ -88,20 +88,22 @@ func (r *postgresFriendRepository) UpdateFriendshipStatus(userA, userB, newStatu
 	return nil
 }
 
-func (r *postgresFriendRepository) GetFriendsList(userID string) ([]string, error) {
+func (r *postgresFriendRepository) GetFriendsList(userID string) ([]repository.FriendSummary, error) {
 	query := `
-        SELECT 
-            CASE
-                WHEN user_a_id = $1 THEN user_b_id
-                ELSE user_a_id
-            END AS friend_id
-        FROM friends
-        WHERE 
-            -- user_a_id または user_b_id が自身のIDであり、
-            (user_a_id = $1 OR user_b_id = $1)
-            -- ステータスが 'accepted' であること
-            AND status = 'accepted'
-    `
+	        SELECT 
+	            u.user_id,
+	            u.username,
+	            u.profile_image_url
+	        FROM friends f
+	        JOIN users u ON u.user_id = CASE
+	            WHEN f.user_a_id = $1 THEN f.user_b_id
+	            ELSE f.user_a_id
+	        END
+	        WHERE 
+	            (f.user_a_id = $1 OR f.user_b_id = $1)
+	            AND f.status = 'accepted'
+	        ORDER BY u.username ASC
+	    `
 
 	rows, err := r.client.DB.Query(query, userID)
 	if err != nil {
@@ -109,18 +111,24 @@ func (r *postgresFriendRepository) GetFriendsList(userID string) ([]string, erro
 	}
 	defer rows.Close()
 
-	var friendIDs []string
+	friends := make([]repository.FriendSummary, 0)
 	for rows.Next() {
-		var friendID string
-		if err := rows.Scan(&friendID); err != nil {
-			return nil, fmt.Errorf("failed to scan friend ID: %w", err)
+		var (
+			friend   repository.FriendSummary
+			imageURL sql.NullString
+		)
+		if err := rows.Scan(&friend.UserID, &friend.Username, &imageURL); err != nil {
+			return nil, fmt.Errorf("failed to scan friend summary: %w", err)
 		}
-		friendIDs = append(friendIDs, friendID)
+		if imageURL.Valid {
+			friend.ProfileImageURL = imageURL.String
+		}
+		friends = append(friends, friend)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	return friendIDs, nil
+	return friends, nil
 }
