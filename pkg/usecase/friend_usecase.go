@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/k-kanke/ashiato-backend/pkg/domain"
 	"github.com/k-kanke/ashiato-backend/pkg/repository"
 )
 
@@ -20,14 +21,17 @@ type FriendUsecase interface {
 }
 
 type friendUsecase struct {
-	friendRepo repository.FriendRepository
+	friendRepo          repository.FriendRepository
+	notificationUsecase NotificationUsecase
 }
 
-func NewFriendUsecase(fr repository.FriendRepository) FriendUsecase {
-	return &friendUsecase{friendRepo: fr}
+func NewFriendUsecase(fr repository.FriendRepository, notificationUC NotificationUsecase) FriendUsecase {
+	return &friendUsecase{
+		friendRepo:          fr,
+		notificationUsecase: notificationUC,
+	}
 }
 
-// RequestFriendship はフレンド申請ロジックを実行する
 func (uc *friendUsecase) RequestFriendship(requesterID, targetID string) error {
 	// 1. 自己申請のチェック
 	if requesterID == targetID {
@@ -47,10 +51,9 @@ func (uc *friendUsecase) RequestFriendship(requesterID, targetID string) error {
 			return errors.New("request already pending")
 		}
 	}
-	// ... DBエラー処理
 
 	// 3. リポジトリで新規申請を作成 (status='pending')
-	// userAID < userBID の順序をGoのロジックで保証する必要がある
+	// userAID < userBID
 	userA, userB := requesterID, targetID
 	if requesterID > targetID {
 		userA, userB = targetID, requesterID
@@ -60,8 +63,12 @@ func (uc *friendUsecase) RequestFriendship(requesterID, targetID string) error {
 		return fmt.Errorf("failed to create friendship request: %w", err)
 	}
 
-	// 4. 通知ロジック（後で実装）: TargetID に通知を生成
-	// ...
+	// 4. 通知ロジック: TargetID に通知を生成
+	if uc.notificationUsecase != nil {
+		if _, err := uc.notificationUsecase.CreateFriendRequestNotification(targetID, requesterID); err != nil {
+			return fmt.Errorf("failed to create notification: %w", err)
+		}
+	}
 
 	return nil
 }
@@ -80,7 +87,6 @@ func (uc *friendUsecase) AcceptFriendship(accepterID, targetID string) error {
 	}
 
 	// 承認するのは、申請の対象者（つまり、action_user_id ではない方）でなければならないというチェックも必要。
-	// ...
 
 	// 3. リポジトリでステータスを 'accepted' に更新
 	if err := uc.friendRepo.UpdateFriendshipStatus(
@@ -92,8 +98,15 @@ func (uc *friendUsecase) AcceptFriendship(accepterID, targetID string) error {
 		return fmt.Errorf("failed to accept friendship: %w", err)
 	}
 
-	// 4. 通知ロジック（後で実装）: 申請者に承認通知を生成
-	// ...
+	// 4. 通知ロジック: 申請者に承認通知を生成
+	if uc.notificationUsecase != nil {
+		recipientID := determineFriendRequestActor(friendship, accepterID)
+		if recipientID != "" {
+			if _, err := uc.notificationUsecase.CreateFriendAcceptedNotification(recipientID, accepterID); err != nil {
+				return fmt.Errorf("failed to create acceptance notification: %w", err)
+			}
+		}
+	}
 
 	return nil
 }
@@ -123,4 +136,20 @@ func (uc *friendUsecase) GetFriendsList(userID string) ([]FriendSummary, error) 
 	}
 
 	return summaries, nil
+}
+
+func determineFriendRequestActor(friendship *domain.Friendship, accepterID string) string {
+	if friendship == nil {
+		return ""
+	}
+
+	if strings.TrimSpace(friendship.ActionUserID) != "" {
+		return friendship.ActionUserID
+	}
+
+	// fallback: notify the other participant
+	if accepterID == friendship.UserAID {
+		return friendship.UserBID
+	}
+	return friendship.UserAID
 }

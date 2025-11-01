@@ -14,6 +14,7 @@ func SetupRouter(
 	pinHandler *handler.PinHandler,
 	friendHandler *handler.FriendHandler,
 	commentHandler *handler.CommentHandler,
+	notificationHandler *handler.NotificationHandler,
 ) *gin.Engine {
 	router := gin.Default()
 
@@ -58,6 +59,14 @@ func SetupRouter(
 			friend.POST("/:user_id/request", friendHandler.RequestFriendship)
 			friend.POST("/:user_id/accept", friendHandler.AcceptFriendship)
 			friend.GET("", friendHandler.GetFriendsList)
+		}
+
+		// 通知関連
+		notification := protected.Group("/notifications")
+		{
+			notification.GET("", notificationHandler.List)
+			notification.GET("/unread-count", notificationHandler.CountUnread)
+			notification.POST("/:notification_id/read", notificationHandler.MarkAsRead)
 		}
 	}
 

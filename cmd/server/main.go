@@ -42,12 +42,17 @@ func main() {
 	commentUc := usecase.NewCommentUsecase(commentRepo)
 	commentHandler := handler.NewCommentHandler(commentUc)
 
+	// Notification関連
+	notificationRepo := database.NewNotificationRepository(dbClient)
+	notificationUc := usecase.NewNotificationUsecase(notificationRepo)
+	notificationHandler := handler.NewNotificationHandler(notificationUc)
+
 	// Friend関連
 	friendRepo := database.NewFriendRepository(dbClient)
-	friendUc := usecase.NewFriendUsecase(friendRepo)
+	friendUc := usecase.NewFriendUsecase(friendRepo, notificationUc)
 	friendHandler := handler.NewFriendHandler(friendUc)
 
-	router := api.SetupRouter(userHandler, pinHandler, friendHandler, commentHandler)
+	router := api.SetupRouter(userHandler, pinHandler, friendHandler, commentHandler, notificationHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
