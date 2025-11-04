@@ -7,6 +7,7 @@ import (
 )
 
 type NotificationRepository interface {
+	// 通知を作成する
 	Create(notification *domain.Notification) error
 	ListByRecipient(userID string, limit int, before *time.Time) ([]domain.Notification, error)
 	CountUnread(userID string) (int, error)
